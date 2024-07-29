@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Website</title>
+</head>
+<script src='https://d3js.org/d3.v5.min.js'></script>
+<style> circle {fill: lightblue; stroke: black;} </style>
+<body onload='init()'>
+    <header>
+        <h1>Comparing Average MPG of Gasoline/Diesel Cars in 2017 (<a href="https://flunky.github.io/cars2017.csv">Data</a>)</h1>
+        <p>View a different slide via the buttons below. Filter car makes via the checkboxes on the left-hand side. View information about a specific car by hovering over data points.</p>
+    </header>
+
+    <script>
+        var pageNumber = 1;
+
+        let initialCarMakes = ['Acura', 'Alfa Romeo', 'Aston Martin', 'Audi', 'Bentley', 'BMW',
+       'Buick', 'Cadillac', 'Chevrolet', 'Chrysler', 'Dodge', 'Ferrari',
+       'Fiat', 'Ford', 'Genesis', 'GMC', 'Honda', 'Hyundai', 'Infiniti',
+       'Jaguar', 'Jeep', 'Kia', 'Lamborghini', 'Land Rover', 'Lexus',
+       'Lincoln', 'Lotus', 'Maserati', 'Mazda', 'McLaren Automotive',
+       'Mercedes-Benz', 'MINI', 'Mitsubishi', 'Nissan', 'Porsche', 'Ram',
+       'Rolls-Royce', 'Roush Performance', 'smart', 'Subaru',
+       'Toyota', 'Volkswagen', 'Volvo'];
+        var carMakes = new Set(initialCarMakes);
+        function updateCarMakes(checkbox) {
+            const label = checkbox.parentElement;
+            const make = label.childNodes[2].textContent.trim();
+            if (checkbox.checked) {
+                carMakes.add(make);
+            } else {
+                carMakes.delete(make);
+            }
+
+            init();
+        }
+
+        async function init() {
+            var data = await d3.csv("https://flunky.github.io/cars2017.csv");
+            data = data.filter(row => carMakes.has(row.Make));
+            data = data.filter(row => row.Fuel != "Electricity");
+
+            d3.select("svg").selectAll("*").remove();
+
+            if (pageNumber == 1) {
+                pageOne(data)
+            } else if (pageNumber == 2) {
+                pageTwo(data)
+            } else {
+                pageThree(data)
+            }
+        }
+
+        async function pageOne(filteredData) {
+            var x = d3.scaleLinear().domain([0, 15]).range([0, 500]);
+            var y = d3.scaleLinear().domain([0, 45]).range([500, 0]);
+
+            var maxIndex = 0;
+            const maxValue = d3.max(filteredData, (d, i) => {
+                if (d.AverageHighwayMPG === d3.max(filteredData, d => d.AverageHighwayMPG)) {
+                    maxIndex = i;
+                }
+                return d.AverageHighwayMPG;
+            });
+
+            d3.select("svg")
+            .append("g")
+            .attr("transform", "translate(50,50)")
+            .selectAll('circle')
+            .data(filteredData)
+            .enter().append('circle')
+            .attr('cx', d => x(d.EngineCylinders))
+            .attr('cy', d => y(d.AverageHighwayMPG))
+            .attr('r', 6)
+            .on("mouseover", function(d,i) {
+                d3.select(".tooltip").style("opacity", 1)
+                .style("left", `${event.pageX + 5}px`)
+                .style("top", `${event.pageY - 28}px`)
+                .html("Make: " + d.Make + "<br>Engine Cylinders: " + d.EngineCylinders + "<br>Highway MPG: " + d.AverageHighwayMPG + "<br>City MPG: " + d.AverageCityMPG);
+            })
+            .on("mouseout", () => {
+                d3.select(".tooltip")
+                    .style("opacity", 0);
+            })
+
+            d3.select('svg')
+            .append('g')
+            .attr("transform", "translate(50,50)")
+            .call(d3.axisLeft(y).tickFormat(d3.format("~s")))
+
+            d3.select('svg')
+            .append('g')
+            .attr("transform", "translate(50,550)")
+            .call(d3.axisBottom(x).tickFormat(d3.format("~s")))
+
+            d3.select('svg')
+            .append("text")
+            .attr("class", "axis-label")
+            .attr("transform", "translate(300,585)")
+            .style("text-anchor", "middle")
+            .text("Number of Cylinders");
+
+            d3.select('svg')
+            .append("text")
+            .attr("class", "axis-label")
+            .attr("transform", "translate(20,300) rotate(-90)")
+            .style("text-anchor", "middle")
+            .text("Average Highway MPG");
+
+            const rectWidth = 100;
+            const rectHeight = 25;
+
+            const xCoord = x(filteredData[maxIndex].EngineCylinders) - rectWidth;
+            const yCoord = y(filteredData[maxIndex].AverageHighwayMPG) - rectHeight;
+
+            d3.select("svg")
+            .append("g")
+            .attr("transform", "translate(50,50)")
+            .append("rect")
+            .attr("x", xCoord)
+            .attr("y", yCoord)
+            .attr("width", rectWidth)
+            .attr("height", rectHeight)
+            .attr("fill", "rgba(167, 220, 161, 1.0)")
+
+            d3.select("svg")
+            .append("g")
+            .attr("transform", "translate(50,50)")
+            .append("text")
+            .attr("x", xCoord + rectWidth / 2)
+            .attr("y", yCoord + rectHeight / 2)
+            .attr("dy", ".35em")
+            .attr("text-anchor", "middle")
+            .attr("fill", "white")
+            .text("Best Car");
+        }
+
+        async function pageTwo(filteredData) {
+            var x = d3.scaleLinear().domain([0, 15]).range([0, 500]);
+            var y = d3.scaleLinear().domain([0, 45]).range([500, 0]);
+
+            var maxIndex = 0;
+            const maxValue = d3.max(filteredData, (d, i) => {
+                if (d.AverageCityMPG === d3.max(filteredData, d => d.AverageCityMPG)) {
+                    maxIndex = i;
+                }
+                return d.AverageCityMPG;
+            });
+
+            console.log(maxIndex);
+            console.log(filteredData[maxIndex]);
+
+            d3.select("svg")
+            .append("g")
+            .attr("transform", "translate(50,50)")
+            .selectAll('circle')
+            .data(filteredData)
+            .enter().append('circle')
+            .attr('cx', d => x(d.EngineCylinders))
+            .attr('cy', d => y(d.AverageCityMPG))
+            .attr('r', 6)
+            .on("mouseover", function(d,i) {
+                d3.select(".tooltip").style("opacity", 1)
+                .style("left", `${event.pageX + 5}px`)
+                .style("top", `${event.pageY - 28}px`)
+                .html("Make: " + d.Make + "<br>Engine Cylinders: " + d.EngineCylinders + "<br>Highway MPG: " + d.AverageHighwayMPG + "<br>City MPG: " + d.AverageCityMPG);
+            })
+            .on("mouseout", () => {
+                d3.select(".tooltip")
+                    .style("opacity", 0);
+            })
+
+            d3.select('svg')
+            .append('g')
+            .attr("transform", "translate(50,50)")
+            .call(d3.axisLeft(y).tickFormat(d3.format("~s")))
+
+            d3.select('svg')
+            .append('g')
+            .attr("transform", "translate(50,550)")
+            .call(d3.axisBottom(x).tickFormat(d3.format("~s")))
+
+            d3.select('svg')
+            .append("text")
+            .attr("class", "axis-label")
+            .attr("transform", "translate(300,585)")
+            .style("text-anchor", "middle")
+            .text("Number of Cylinders");
+
+            d3.select('svg')
+            .append("text")
+            .attr("class", "axis-label")
+            .attr("transform", "translate(20,300) rotate(-90)")
+            .style("text-anchor", "middle")
+            .text("Average City MPG");
+
+            const rectWidth = 100;
+            const rectHeight = 25;
+
+            const xCoord = x(filteredData[maxIndex].EngineCylinders) - rectWidth;
+            const yCoord = y(filteredData[maxIndex].AverageCityMPG) - rectHeight;
+
+            d3.select("svg")
+            .append("g")
+            .attr("transform", "translate(50,50)")
+            .append("rect")
+            .attr("x", xCoord)
+            .attr("y", yCoord)
+            .attr("width", rectWidth)
+            .attr("height", rectHeight)
+            .attr("fill", "rgba(167, 220, 161, 1.0)")
+
+            d3.select("svg")
+            .append("g")
+            .attr("transform", "translate(50,50)")
+            .append("text")
+            .attr("x", xCoord + rectWidth / 2)
+            .attr("y", yCoord + rectHeight / 2)
+            .attr("dy", ".35em")
+            .attr("text-anchor", "middle")
+            .attr("fill", "white")
+            .text("Best Car");
+        }
+
+        async function pageThree(filteredData) {
+            var x = d3.scaleLinear().domain([0, 45]).range([0, 500]);
+            var y = d3.scaleLinear().domain([0, 45]).range([500, 0]);
+
+            var maxIndex = 0;
+            const maxValue = d3.max(filteredData, (d, i) => {
+                if (d.AverageCityMPG**2 + d.AverageHighwayMPG**2 === d3.max(filteredData, d => d.AverageCityMPG**2 + d.AverageHighwayMPG**2)) {
+                    maxIndex = i;
+                }
+                return d.AverageCityMPG**2 + d.AverageHighwayMPG**2;
+            });
+
+            console.log(maxIndex);
+            console.log(filteredData[maxIndex]);
+
+            d3.select("svg")
+            .append("g")
+            .attr("transform", "translate(50,50)")
+            .selectAll('circle')
+            .data(filteredData)
+            .enter().append('circle')
+            .attr('cx', d => x(d.AverageHighwayMPG))
+            .attr('cy', d => y(d.AverageCityMPG))
+            .attr('r', 6)
+            .on("mouseover", function(d,i) {
+                d3.select(".tooltip").style("opacity", 1)
+                .style("left", `${event.pageX + 5}px`)
+                .style("top", `${event.pageY - 28}px`)
+                .html("Make: " + d.Make + "<br>Engine Cylinders: " + d.EngineCylinders + "<br>Highway MPG: " + d.AverageHighwayMPG + "<br>City MPG: " + d.AverageCityMPG);
+            })
+            .on("mouseout", () => {
+                d3.select(".tooltip")
+                    .style("opacity", 0);
+            })
+
+            d3.select('svg')
+            .append('g')
+            .attr("transform", "translate(50,50)")
+            .call(d3.axisLeft(y).tickFormat(d3.format("~s")))
+
+            d3.select('svg')
+            .append('g')
+            .attr("transform", "translate(50,550)")
+            .call(d3.axisBottom(x).tickFormat(d3.format("~s")))
+
+            d3.select('svg')
+            .append("text")
+            .attr("class", "axis-label")
+            .attr("transform", "translate(300,585)")
+            .style("text-anchor", "middle")
+            .text("Average Highway MPG");
+
+            d3.select('svg')
+            .append("text")
+            .attr("class", "axis-label")
+            .attr("transform", "translate(20,300) rotate(-90)")
+            .style("text-anchor", "middle")
+            .text("Average City MPG");
+
+            const rectWidth = 75;
+            const rectHeight = 25;
+
+            const xCoord = x(filteredData[maxIndex].AverageHighwayMPG);
+            const yCoord = y(filteredData[maxIndex].AverageCityMPG) - rectHeight;
+
+            d3.select("svg")
+            .append("g")
+            .attr("transform", "translate(50,50)")
+            .append("rect")
+            .attr("x", xCoord)
+            .attr("y", yCoord)
+            .attr("width", rectWidth)
+            .attr("height", rectHeight)
+            .attr("fill", "rgba(167, 220, 161, 1.0)")
+
+            d3.select("svg")
+            .append("g")
+            .attr("transform", "translate(50,50)")
+            .append("text")
+            .attr("x", xCoord + rectWidth / 2)
+            .attr("y", yCoord + rectHeight / 2)
+            .attr("dy", ".35em")
+            .attr("text-anchor", "middle")
+            .attr("fill", "white")
+            .text("Best Car");
+        }
+
+    </script>
+
+    <div class="tooltip" opacity=0></div>
+
+    <div class="button-container">
+        <button id="button1" style="font-size: 20px; background-color: #f0f0f0;" onclick="this.style.backgroundColor = '#f0f0f0'; document.getElementById('button2').style.backgroundColor = ''; document.getElementById('button3').style.backgroundColor = ''; pageNumber = 1; init();">Number of Cylinders vs. Highway MPG</button>
+        <button id="button2" style="font-size: 20px;" onclick="this.style.backgroundColor = '#f0f0f0'; document.getElementById('button1').style.backgroundColor = ''; document.getElementById('button3').style.backgroundColor = ''; pageNumber = 2; init();">Number of Cylinders vs. City MPG</button>
+        <button id="button3" style="font-size: 20px;" onclick="this.style.backgroundColor = '#f0f0f0'; document.getElementById('button1').style.backgroundColor = ''; document.getElementById('button2').style.backgroundColor = ''; pageNumber = 3; init();">Highway MPG vs. City MPG</button>
+    </div>
+
+    <style>
+        .box {
+            display: inline-block;
+            padding: 40px;
+            box-sizing: border-box;
+            vertical-align: top;
+        }
+
+        .axis-label {
+            font-size: 16px;
+            text-anchor: middle;
+        }
+
+        .tooltip {
+            position: absolute;
+            text-align: center;
+            padding: 8px;
+            font-size: 16px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            border-radius: 4px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+    </style>
+
+    <div class="checkbox-container box">
+        <h2>Car Makes</h2>
+        <label for="checkbox1">
+            <input type="checkbox" id="checkbox1" name="checkbox" value="Acura" checked onchange="updateCarMakes(this)">
+            Acura
+        </label><br>
+        <label for="checkbox2">
+            <input type="checkbox" id="checkbox2" name="checkbox" value="Alfa Romeo" checked onchange="updateCarMakes(this)">
+            Alfa Romeo
+        </label><br>
+        <label for="checkbox3">
+            <input type="checkbox" id="checkbox3" name="checkbox" value="Aston Martin" checked onchange="updateCarMakes(this)">
+            Aston Martin
+        </label><br>
+        <label for="checkbox4">
+            <input type="checkbox" id="checkbox4" name="checkbox" value="Audi" checked onchange="updateCarMakes(this)">
+            Audi
+        </label><br>
+        <label for="checkbox5">
+            <input type="checkbox" id="checkbox5" name="checkbox" value="Bentley" checked onchange="updateCarMakes(this)">
+            Bentley
+        </label><br>
+        <label for="checkbox6">
+            <input type="checkbox" id="checkbox6" name="checkbox" value="BMW" checked onchange="updateCarMakes(this)">
+            BMW
+        </label><br>
+        <label for="checkbox7">
+            <input type="checkbox" id="checkbox7" name="checkbox" value="Buick" checked onchange="updateCarMakes(this)">
+            Buick
+        </label><br>
+        <label for="checkbox8">
+            <input type="checkbox" id="checkbox8" name="checkbox" value="Cadillac" checked onchange="updateCarMakes(this)">
+            Cadillac
+        </label><br>
+        <label for="checkbox9">
+            <input type="checkbox" id="checkbox9" name="checkbox" value="Chevrolet" checked onchange="updateCarMakes(this)">
+            Chevrolet
+        </label><br>
+        <label for="checkbox10">
+            <input type="checkbox" id="checkbox10" name="checkbox" value="Chrysler" checked onchange="updateCarMakes(this)">
+            Chrysler
+        </label><br>
+        <label for="checkbox11">
+            <input type="checkbox" id="checkbox11" name="checkbox" value="Dodge" checked onchange="updateCarMakes(this)">
+            Dodge
+        </label><br>
+        <label for="checkbox12">
+            <input type="checkbox" id="checkbox12" name="checkbox" value="Ferrari" checked onchange="updateCarMakes(this)">
+            Ferrari
+        </label><br>
+        <label for="checkbox13">
+            <input type="checkbox" id="checkbox13" name="checkbox" value="Fiat" checked onchange="updateCarMakes(this)">
+            Fiat
+        </label><br>
+        <label for="checkbox14">
+            <input type="checkbox" id="checkbox14" name="checkbox" value="Ford" checked onchange="updateCarMakes(this)">
+            Ford
+        </label><br>
+        <label for="checkbox15">
+            <input type="checkbox" id="checkbox15" name="checkbox" value="Genesis" checked onchange="updateCarMakes(this)">
+            Genesis
+        </label><br>
+        <label for="checkbox16">
+            <input type="checkbox" id="checkbox16" name="checkbox" value="GMC" checked onchange="updateCarMakes(this)">
+            GMC
+        </label><br>
+        <label for="checkbox17">
+            <input type="checkbox" id="checkbox17" name="checkbox" value="Honda" checked onchange="updateCarMakes(this)">
+            Honda
+        </label><br>
+        <label for="checkbox18">
+            <input type="checkbox" id="checkbox18" name="checkbox" value="Hyundai" checked onchange="updateCarMakes(this)">
+            Hyundai
+        </label><br>
+        <label for="checkbox19"></label>
+            <input type="checkbox" id="checkbox19" name="checkbox" value="Infiniti" checked onchange="updateCarMakes(this)">
+            Infiniti
+        </label><br>
+        <label for="checkbox20">
+            <input type="checkbox" id="checkbox20" name="checkbox" value="Jaguar" checked onchange="updateCarMakes(this)">
+            Jaguar
+        </label><br>
+        <label for="checkbox21">
+            <input type="checkbox" id="checkbox21" name="checkbox" value="Jeep" checked onchange="updateCarMakes(this)">
+            Jeep
+        </label><br>
+        <label for="checkbox22">
+            <input type="checkbox" id="checkbox22" name="checkbox" value="Kia" checked onchange="updateCarMakes(this)">
+            Kia
+        </label><br>
+        <label for="checkbox23"></label>
+            <input type="checkbox" id="checkbox23" name="checkbox" value="Lamborghini" checked onchange="updateCarMakes(this)">
+            Lamborghini
+        </label><br>
+        <label for="checkbox24">
+            <input type="checkbox" id="checkbox24" name="checkbox" value="Land Rover" checked onchange="updateCarMakes(this)">
+            Land Rover
+        </label><br>
+        <label for="checkbox25">
+            <input type="checkbox" id="checkbox25" name="checkbox" value="Lexus" checked onchange="updateCarMakes(this)">
+            Lexus
+        </label><br>
+        <label for="checkbox26">
+            <input type="checkbox" id="checkbox26" name="checkbox" value="Lincoln" checked onchange="updateCarMakes(this)">
+            Lincoln
+        </label><br>
+        <label for="checkbox27">
+            <input type="checkbox" id="checkbox27" name="checkbox" value="Lotus" checked onchange="updateCarMakes(this)">
+            Lotus
+        </label><br>
+        <label for="checkbox28">
+            <input type="checkbox" id="checkbox28" name="checkbox" value="Maserati" checked onchange="updateCarMakes(this)">
+            Maserati
+        </label><br>
+        <label for="checkbox29">
+            <input type="checkbox" id="checkbox29" name="checkbox" value="Mazda" checked onchange="updateCarMakes(this)">
+            Mazda
+        </label><br>
+        <label for="checkbox30">
+            <input type="checkbox" id="checkbox30" name="checkbox" value="McLaren Automotive" checked onchange="updateCarMakes(this)">
+            McLaren Automotive
+        </label><br>
+        <label for="checkbox31">
+            <input type="checkbox" id="checkbox31" name="checkbox" value="Mercedes-Benz" checked onchange="updateCarMakes(this)">
+            Mercedes-Benz
+        </label><br>
+        <label for="checkbox32">
+            <input type="checkbox" id="checkbox32" name="checkbox" value="MINI" checked onchange="updateCarMakes(this)">
+            MINI
+        </label><br>
+        <label for="checkbox33">
+            <input type="checkbox" id="checkbox33" name="checkbox" value="Mitsubishi" checked onchange="updateCarMakes(this)">
+            Mitsubishi
+        </label><br>
+        <label for="checkbox34">
+            <input type="checkbox" id="checkbox34" name="checkbox" value="Nissan" checked onchange="updateCarMakes(this)">
+            Nissan
+        </label><br>
+        <label for="checkbox35">
+            <input type="checkbox" id="checkbox35" name="checkbox" value="Porsche" checked onchange="updateCarMakes(this)">
+            Porsche
+        </label><br>
+        <label for="checkbox36">
+            <input type="checkbox" id="checkbox36" name="checkbox" value="Ram" checked onchange="updateCarMakes(this)">
+            Ram
+        </label><br>
+        <label for="checkbox37">
+            <input type="checkbox" id="checkbox37" name="checkbox" value="Rolls-Royce" checked onchange="updateCarMakes(this)">
+            Rolls-Royce
+        </label><br>
+        <label for="checkbox38">
+            <input type="checkbox" id="checkbox38" name="checkbox" value="Roush Performance" checked onchange="updateCarMakes(this)">
+            Roush Performance
+        </label><br>
+        <label for="checkbox39">
+            <input type="checkbox" id="checkbox39" name="checkbox" value="smart" checked onchange="updateCarMakes(this)">
+            smart
+        </label><br>  
+        <label for="checkbox40">
+            <input type="checkbox" id="checkbox40" name="checkbox" value="Subaru" checked onchange="updateCarMakes(this)">
+            Subaru
+        </label><br>
+        <label for="checkbox41">
+            <input type="checkbox" id="checkbox41" name="checkbox" value="Toyota" checked onchange="updateCarMakes(this)">
+            Toyota
+        </label><br>
+        <label for="checkbox42">
+            <input type="checkbox" id="checkbox42" name="checkbox" value="Volkswagen" checked onchange="updateCarMakes(this)">
+            Volkswagen
+        </label><br>
+        <label for="checkbox43">
+            <input type="checkbox" id="checkbox43" name="checkbox" value="Volvo" checked onchange="updateCarMakes(this)">
+            Volvo
+        </label><br>
+    </div>
+
+    <div class="svg-container box">
+        <svg width="600" height="600" style="background-color: rgb(242, 242, 242);"></svg>
+        </svg>
+    </div>
+</body>
+</html>
